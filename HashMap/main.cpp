@@ -35,6 +35,7 @@ int main(int argc, char* argv[]) {
 		std::cout << i << " : " << *(hmap.get(i)) << std::endl;
 	}
 
+	std::cout << "Méret: " << hmap.size() << std::endl;
 	std::cout << "Lefutott";
 	std::cin.get();
 	return 0;

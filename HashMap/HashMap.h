@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <sstream>
+#include <future>
 
 #include "NoEntryException.h"
 
@@ -27,7 +28,7 @@ class HashMap
 	// private methodss
 	/// Hash functions
 	unsigned long int hash(Key) const;
-
+	unsigned int _count(unsigned int begin, unsigned int end) const;
 	unsigned long int to_uint(Key) const;
 	
 public:
@@ -40,7 +41,7 @@ public:
 	/// Deletes an object from the hash map
 	void del(Key&);
 	/// Returns the number of stored object
-	size_t size();
+	unsigned int size() const;
 	/// Returns True if the hash map is empty, False otherwise
 	bool empty();
 
@@ -95,7 +96,7 @@ void HashMap<Key, Val>::put(Key key, Val value)
 		// ha már van, akkor belinkeljük a Node lista utolsó helyére
 		Node *act = &table[key_hash];
 		while (act->has_next) {
-			std::cout <<act->val<< "->" << act->next->val <<" ";
+			//std::cout <<act->val<< "->" << act->next->val <<" ";
 			act = act->next;
 		}
 		act->next = new Node(key, value);
@@ -104,6 +105,61 @@ void HashMap<Key, Val>::put(Key key, Val value)
 	}
 
 }
+
+template<typename Key, typename Val>
+unsigned int HashMap<Key, Val>::_count(unsigned int begin, unsigned int end) const {
+	unsigned int count = 0;
+	for (size_t i = begin; i < end; i++)
+	{
+		if (table[i].initialized) {
+			Node *act = &table[i];
+			count++;
+			while (act->has_next) {
+				// std::cout << act->val << "->" << act->next->val << " ";
+				act = act->next;
+				count++;
+			}
+		}
+	}
+
+	return count;
+}
+
+template<typename Key, typename Val>
+unsigned int HashMap<Key, Val>::size() const {
+	unsigned int nthreads = std::thread::hardware_concurrency();
+
+	// std::thread counters[nthreads];
+
+	std::future<unsigned int> *counters = new std::future<unsigned int>[nthreads];
+
+	for (unsigned int i = 0; i < nthreads; i++)
+	{
+		int a = (MAX_LENGTH / nthreads*i);
+		int b = (MAX_LENGTH / nthreads*(i + 1));
+			
+		//std::cout << a << ", " << b << std::endl;
+		counters[i] = std::async(std::launch::async, &HashMap<Key, Val>::_count, this, a, b);
+			//std::thread(_count, MAX_LENGTH/nthreads*i, MAX_LENGTH / nthreads*(i+1));
+	}
+
+	for (size_t i = 0; i < nthreads; i++)
+	{
+		counters[i].wait();
+	}
+
+	unsigned int count = 0;
+	for (unsigned int i = 0; i < nthreads; i++)
+	{
+
+		unsigned int c = counters[i].get();
+		// std::cout << c <<std::endl;
+		count += c;
+	}
+
+	return count;
+}
+
 
 template<typename Key, typename Val>
 Val* HashMap<Key, Val>::get(const Key & key) const
@@ -150,12 +206,6 @@ inline void HashMap<Key, Val>::del(Key & in_key)
 		}
 		Node *prev = act;
 	}
-}
-
-template<typename Key, typename Val>
-inline size_t HashMap<Key, Val>::size()
-{
-	return size_t();
 }
 
 template<typename Key, typename Val>
