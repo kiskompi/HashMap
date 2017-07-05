@@ -2,6 +2,7 @@
 #include <string>
 #include <sstream>
 #include <future>
+#include <vector>
 
 #include "NoEntryException.h"
 
@@ -29,6 +30,7 @@ class HashMap
 	/// Hash functions
 	unsigned long int hash(Key) const;
 	unsigned int _count(unsigned int begin, unsigned int end) const;
+	void _destroy_fragment(unsigned int begin, unsigned int end);
 	unsigned long int to_uint(Key) const;
 	
 public:
@@ -73,7 +75,7 @@ HashMap<Key, Val>::Node::Node(Key& in_key, Val& in_val)
 template<typename Key, typename Val>
 HashMap<Key, Val>::Node::~Node()
 {
-
+	
 }
 
 
@@ -135,8 +137,8 @@ unsigned int HashMap<Key, Val>::size() const {
 
 	for (unsigned int i = 0; i < nthreads; i++)
 	{
-		int a = (MAX_LENGTH / nthreads*i);
-		int b = (MAX_LENGTH / nthreads*(i + 1));
+		size_t a = (MAX_LENGTH / nthreads*i);
+		size_t b = (MAX_LENGTH / nthreads*(i + 1));
 			
 		//std::cout << a << ", " << b << std::endl;
 		counters[i] = std::async(std::launch::async, &HashMap<Key, Val>::_count, this, a, b);
@@ -156,7 +158,6 @@ unsigned int HashMap<Key, Val>::size() const {
 		// std::cout << c <<std::endl;
 		count += c;
 	}
-
 	return count;
 }
 
@@ -219,6 +220,55 @@ HashMap<Key, Val>::HashMap()
 template<typename Key, typename Val>
 HashMap<Key, Val>::~HashMap()
 {
+	unsigned int nthreads = std::thread::hardware_concurrency();
+	std::vector<std::thread> counters;
+
+	for (unsigned int i = 0; i < nthreads; i++)
+	{
+		size_t a = (MAX_LENGTH / nthreads*i);
+		size_t b = (MAX_LENGTH / nthreads*(i + 1));
+
+		counters.push_back(std::thread(&HashMap<Key, Val>::_destroy_fragment, this, a, b));
+	}
+
+	for (size_t i = 0; i < nthreads; i++)
+	{
+		counters[i].join();
+	}
+
+}
+
+template<typename Key, typename Val>
+void HashMap<Key, Val>::_destroy_fragment(unsigned int begin, unsigned int end) {
+
+	for (size_t i = begin; i < end; i++)
+	{
+		if (table[i].initialized) {
+			Node *current = table[i].next;
+			int c = 0;
+
+			while (current != 0) {
+				Node* next = current->next;
+				delete current;
+				current = next;
+				std::cout << "DN";
+			}
+
+			//while (act->has_next) {
+			//	// std::cout << act->val << "->" << act->next->val << " ";
+			//	if (c % 2 == 0 && c != 0) {
+			//		to_del = act;
+			//		if (to_del != nullptr) {
+			//			delete to_del->next;
+			//		}
+			//	}
+			//		
+			//	act = act->next;
+			//	c++;
+			//}
+		}
+	}
+
 }
 
 template<typename Key, typename Val>
